@@ -10,28 +10,33 @@
 
 using namespace std;
 
-double count_distance(vector<int> n, vector<double> X, vector<double> Y){
+struct City {
+    double x;
+    double y;
+};
+
+double count_distance(vector<int> idx, vector<City> cities) {
     long double d = 0;
-    for(int i=1; i<n.size(); i++){
-        d=d+sqrt(pow(X.at(n.at(i))-X.at(n.at(i-1)),2)+pow(Y.at(n.at(i))-Y.at(n.at(i-1)),2));
+    for (int i = 1; i < idx.size(); i++){
+        d += sqrt(pow(cities[idx[i]].x) - cities[idx[i - 1]].x), 2) + pow(cities[idx[i]].y - cities[idx[i - 1]].y, 2));
     }
-    d=d+sqrt(pow(X.at(n.size()-1)-X.at(0),2)+pow(Y.at(n.size()-1)-Y.at(0),2));
+    d += sqrt(pow(cities[idx.end()].x - cities[0], 2) + pow(cities[idx.end()].y - cities[0].y, 2));
     return d;
 }
 
-void visualize(vector<int> numbers, vector<double> x_coo, vector<double> y_coo){
+void visualize(vector<int> indices, vector<double> x_coo, vector<double> y_coo){
     //wizualizacja drogi między miastami na bieżąco
-    TCanvas *c=new TCanvas("c", "Ireland", 1000,800);
-    TGraph *g1 = new TGraph(numbers.size(), &x_coo[0], &y_coo[0]);
+    TCanvas *c = new TCanvas("c", "Ireland", 1000, 800);
+    TGraph *g1 = new TGraph(indices.size(), &x_coo[0], &y_coo[0]);
     g1->SetTitle("Ireland");
     g1->SetMarkerColor(9);
     g1->SetMarkerStyle(29);
     g1->SetMarkerSize(1);
-    
+
     TGraph *g = new TGraph(1, &x_coo[0], &y_coo[0]);
-    
-    for(int i=0; i<numbers.size(); i++){
-        g->SetPoint(i,x_coo[numbers.at(i)],y_coo[numbers.at(i)]);
+
+    for(int i=0; i<indices.size(); i++){
+        g->SetPoint(i,x_coo[indices.at(i)],y_coo[indices.at(i)]);
         g1->Draw("AP");
         g->Draw("same");
         c->Modified();
@@ -40,40 +45,43 @@ void visualize(vector<int> numbers, vector<double> x_coo, vector<double> y_coo){
     }
 }
 
+vector<City> load_cities(string filename){
+    ifstream Cities;
+    Cities.open(filename);
+
+    vector<City> cities;
+
+    double index, x, y;
+    string coo;
+
+    while(getline(Cities, coo)) {
+        stringstream line(coo);
+
+        if (line >> index >> x >> y)
+            cities.push_back(City {x,y});
+    }
+
+    Cities.close();
+
+    return cities;
+}
+
 void graph(){
     //czytanie współrzędnych miast z pliku, zapis do wektorów
-    ifstream TownFile;
-    TownFile.open("ireland.txt");
-    vector<double> x_coo;
-    vector<double> y_coo;
-    vector<int> numbers;
-    
-    double num, x, y;
-    int i = 0;
-    string coo;
-    while(getline(TownFile, coo)){
-        stringstream c(coo);
-        if (c >> num >> x >> y){
-            numbers.push_back(num-1);
-            x_coo.push_back(x);
-            y_coo.push_back(y);
-        }
-        i++;
-    }
-    TownFile.close();
-    
+    vector<City> cities = load_cities("ireland.txt");
+
+    vector<int> indices = iota(cities.begin(), cities.end(), 1);
+
     //losujemy kolejność miast
     srand(time(NULL));
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
-    shuffle(begin(numbers),end(numbers),default_random_engine(seed));
-    
+    shuffle(indices.begin(), indices.end(),  default_random_engine(seed));
+
     //odległość, TODO: sprawdzić, czy dobrze to jest liczone
-    double distance = count_distance(numbers, x_coo, y_coo);
-    
+    double distance = count_distance(indices, cities);
+
     cout.precision(17);
-    cout<<distance<<endl;
-    
-    
-    visualize(numbers, x_coo, y_coo);
-    
+    cout << distance << endl;
+
+    visualize(indices, x_coo, y_coo);
 }
