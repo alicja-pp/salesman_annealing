@@ -18,25 +18,39 @@ struct City {
 double count_distance(vector<int> idx, vector<City> cities) {
     long double d = 0;
     for (int i = 1; i < idx.size(); i++){
-        d += sqrt(pow(cities[idx[i]].x) - cities[idx[i - 1]].x), 2) + pow(cities[idx[i]].y - cities[idx[i - 1]].y, 2));
+        d += sqrt(pow(cities[idx[i]].x - cities[idx[i - 1]].x, 2) + pow(cities[idx[i]].y - cities[idx[i - 1]].y, 2));
     }
-    d += sqrt(pow(cities[idx.end()].x - cities[0], 2) + pow(cities[idx.end()].y - cities[0].y, 2));
+    d += sqrt(pow(cities[idx.size()-1].x - cities[0].x, 2) + pow(cities[idx.size()-1].y - cities[0].y, 2));
     return d;
 }
 
-void visualize(vector<int> indices, vector<double> x_coo, vector<double> y_coo){
+vector<double> get_x(vector<City> cities){
+    vector<double> xs(cities.size());
+    transform(cities.begin(), cities.end(), xs.begin(), [](City const& city) { return city.x; });
+    return xs;
+}
+
+vector<double> get_y(vector<City> cities){
+    vector<double> ys(cities.size());
+    transform(cities.begin(), cities.end(), ys.begin(), [](City const& city) { return city.y; });
+    return ys;
+}
+
+void visualize(vector<int> indices, vector<City> cities){
     //wizualizacja drogi między miastami na bieżąco
     TCanvas *c = new TCanvas("c", "Ireland", 1000, 800);
-    TGraph *g1 = new TGraph(indices.size(), &x_coo[0], &y_coo[0]);
+    vector<double> xs = get_x(cities);
+    vector<double> ys = get_y(cities);
+    TGraph *g1 = new TGraph(indices.size(), &xs[0], &ys[0]);
     g1->SetTitle("Ireland");
     g1->SetMarkerColor(9);
     g1->SetMarkerStyle(29);
     g1->SetMarkerSize(1);
 
-    TGraph *g = new TGraph(1, &x_coo[0], &y_coo[0]);
+    TGraph *g = new TGraph(1, &cities[0].x, &cities[0].y);
 
     for(int i=0; i<indices.size(); i++){
-        g->SetPoint(i,x_coo[indices.at(i)],y_coo[indices.at(i)]);
+        g->SetPoint(i, cities[indices.at(i)].x, cities[indices.at(i)].y);
         g1->Draw("AP");
         g->Draw("same");
         c->Modified();
@@ -70,18 +84,19 @@ void graph(){
     //czytanie współrzędnych miast z pliku, zapis do wektorów
     vector<City> cities = load_cities("ireland.txt");
 
-    vector<int> indices = iota(cities.begin(), cities.end(), 1);
-
+    vector<int> indices(cities.size());
+    iota(begin(indices), end(indices), 0);
+    cout<< endl<<indices.back()<<endl;
     //losujemy kolejność miast
     srand(time(NULL));
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
     shuffle(indices.begin(), indices.end(),  default_random_engine(seed));
 
-    //odległość, TODO: sprawdzić, czy dobrze to jest liczone
+    //odległość
     double distance = count_distance(indices, cities);
 
     cout.precision(17);
     cout << distance << endl;
 
-    visualize(indices, x_coo, y_coo);
+    visualize(indices, cities);
 }
