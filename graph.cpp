@@ -19,6 +19,27 @@ double count_distance(vector<int> n, vector<double> X, vector<double> Y){
     return d;
 }
 
+void visualize(vector<int> numbers, vector<double> x_coo, vector<double> y_coo){
+    //wizualizacja drogi między miastami na bieżąco
+    TCanvas *c=new TCanvas("c", "Ireland", 1000,800);
+    TGraph *g1 = new TGraph(numbers.size(), &x_coo[0], &y_coo[0]);
+    g1->SetTitle("Ireland");
+    g1->SetMarkerColor(9);
+    g1->SetMarkerStyle(29);
+    g1->SetMarkerSize(1);
+    
+    TGraph *g = new TGraph(1, &x_coo[0], &y_coo[0]);
+    
+    for(int i=0; i<numbers.size(); i++){
+        g->SetPoint(i,x_coo[numbers.at(i)],y_coo[numbers.at(i)]);
+        g1->Draw("AP");
+        g->Draw("same");
+        c->Modified();
+        c->Update();
+        gSystem->ProcessEvents();
+    }
+}
+
 void graph(){
     //czytanie współrzędnych miast z pliku, zapis do wektorów
     ifstream TownFile;
@@ -26,7 +47,7 @@ void graph(){
     vector<double> x_coo;
     vector<double> y_coo;
     vector<int> numbers;
-
+    
     double num, x, y;
     int i = 0;
     string coo;
@@ -53,23 +74,6 @@ void graph(){
     cout<<distance<<endl;
     
     
-    //wizualizacja drogi między miastami na bieżąco
-    TCanvas *c=new TCanvas("c", "Ireland", 1000,800);
-    TGraph *g1 = new TGraph(numbers.size(), &x_coo[0], &y_coo[0]);
-    g1->SetTitle("Ireland");
-    g1->SetMarkerColor(9);
-    g1->SetMarkerStyle(29);
-    g1->SetMarkerSize(1);
-
-    TGraph *g = new TGraph(1, &x_coo[0], &y_coo[0]);
-  
-    for(int i=0; i<numbers.size(); i++){
-        g->SetPoint(i,x_coo[numbers.at(i)],y_coo[numbers.at(i)]);
-        g1->Draw("AP");
-        g->Draw("same");
-        c->Modified();
-        c->Update();
-        gSystem->ProcessEvents();
-    }
+    visualize(numbers, x_coo, y_coo);
     
 }
