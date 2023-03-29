@@ -1,16 +1,13 @@
-#include <algorithm>
 #include <chrono>
-#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <random>
 #include <sstream>
-#include <stdio.h>
 #include <vector>
 
-#include "TSystem.h"
 #include "TCanvas.h"
 #include "TGraph.h"
+#include "TSystem.h"
 
 using namespace std;
 
@@ -31,11 +28,11 @@ double total_distance(vector<City> cities, vector<int> idx) {
     long double d = 0;
 
     for (int i = 0; i < idx.size() - 1; i++) {
-        d += pow(cities[idx[i + 1]].x - cities[idx[i]].x, 2) +
-             pow(cities[idx[i + 1]].y - cities[idx[i]].y, 2);
+        d += sqrt(pow(cities[idx[i + 1]].x - cities[idx[i]].x, 2) +
+                  pow(cities[idx[i + 1]].y - cities[idx[i]].y, 2));
     }
-    d += pow(cities[idx[0]].x - cities[idx.back()].x, 2) +
-         pow(cities[idx[0]].y - cities[idx.back()].y, 2);
+    d += sqrt(pow(cities[idx[0]].x - cities[idx.back()].x, 2) +
+              pow(cities[idx[0]].y - cities[idx.back()].y, 2));
     return d;
 }
 
@@ -64,7 +61,6 @@ vector<City> load_cities(string filename) {
 
     while (getline(Cities, coo)) {
         stringstream line(coo);
-
         if (line >> index >> x >> y) cities.push_back(City{x, y});
     }
 
@@ -91,7 +87,7 @@ State init_state(string filename) {
     iota(begin(indices), end(indices), 0);
 
     return State{.step = 0,
-                 .temperature = 100,
+                 .temperature = 100000,
                  .total_length = total_distance(cities, indices),
                  .indices = indices,
                  .cities = cities};
@@ -130,7 +126,7 @@ void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
 void graph(void) {
     // czytanie współrzędnych miast z pliku, zapis do wektorów
     State state = init_state("ireland-100.txt");
-    int step_number = 10000000;
+    int step_number = 1000000;
 
     srand(time(NULL));
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
@@ -163,7 +159,7 @@ void graph(void) {
 
     int rand_idx1, rand_idx2;
 
-    //TODO: warunek zatrzymania programu - moe gdy wyzeruje się temperatura / będzie praktycznie zerowa
+    // TODO: warunek zatrzymania programu - moze gdy temp ~= 0
     while (state.step < step_number) {
         do {
             rand_idx1 = rand() % (state.cities.size());
@@ -176,21 +172,26 @@ void graph(void) {
 
         double new_length = total_distance(state.cities, new_indices);
 
-        double prob =
-            exp(-(new_length - state.total_length) / (state.temperature));
+        double prob = (new_length < state.total_length)
+                          ? 1.0
+                          : exp(-(new_length - state.total_length) /
+                                (state.temperature));
 
-        double random = (double)rand() / (RAND_MAX + 1.0);
-
-        if (random < prob) {
+        if (prob > (double)rand() / (RAND_MAX + 1.0)) {
             state.total_length = new_length;
             state.indices = new_indices;
         }
 
-        state.temperature *= 0.9;
+        cout << endl << state.step << ": " << endl;
+        cout << "Length = " << state.total_length << endl;
+        cout << "New Length = " << new_length << endl;
+        cout << "Temperature = " << state.temperature << endl;
+        cout << "Probability = " << prob << endl;
+
+        state.temperature *= 0.8;
 
         update_graph(canvas, points, lines, lengths, temps, state);
-        // sleep(1);
-        cout << endl;
+
         state.step++;
     }
 }
