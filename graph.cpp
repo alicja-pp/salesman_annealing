@@ -28,12 +28,12 @@ struct State {
 
 double total_distance(vector<int> idx, vector<City> cities) {
     long double d = 0;
-    for (int i = 1; i < idx.size(); i++) {
-        d += sqrt(pow(cities[idx[i]].x - cities[idx[i - 1]].x, 2) +
-                  pow(cities[idx[i]].y - cities[idx[i - 1]].y, 2));
+    for (int i = 0; i < idx.size(); i++) {
+        d += sqrt(pow(cities[idx[i + 1]].x - cities[idx[i]].x, 2) +
+                  pow(cities[idx[i + 1]].y - cities[idx[i]].y, 2));
     }
-    d += sqrt(pow(cities[idx.size() - 1].x - cities[0].x, 2) +
-              pow(cities[idx.size() - 1].y - cities[0].y, 2));
+    d += sqrt(pow(cities[idx[0]].x - cities[idx.back()].x, 2) +
+              pow(cities[idx[0]].y - cities[idx.back()].y, 2));
     return d;
 }
 
@@ -49,31 +49,6 @@ vector<double> get_y(vector<City> cities) {
     transform(cities.begin(), cities.end(), ys.begin(),
               [](City const &city) { return city.y; });
     return ys;
-}
-
-void visualize(vector<int> indices, vector<City> cities) {
-    // wizualizacja drogi między miastami na bieżąco
-    TCanvas *c = new TCanvas("c", "Path", 1000, 800);
-    vector<double> xs = get_x(cities);
-    vector<double> ys = get_y(cities);
-    TGraph *g1 = new TGraph(indices.size(), &xs[0], &ys[0]);
-    g1->SetTitle("Path");
-    g1->SetMarkerColor(9);
-    g1->SetMarkerStyle(29);
-    g1->SetMarkerSize(1);
-
-    TGraph *g = new TGraph(1, &cities[0].x, &cities[0].y);
-
-    for (int i = 0; i < indices.size(); i++) {
-        g->SetPoint(i, cities[indices.at(i)].x, cities[indices.at(i)].y);
-    }
-    g->SetPoint(indices.back(), cities[indices.at(0)].x,
-                cities[indices.at(0)].y);
-    g1->Draw("AP");
-    g->Draw("same");
-    c->Modified();
-    c->Update();
-    gSystem->ProcessEvents();
 }
 
 vector<City> load_cities(string filename) {
@@ -96,61 +71,84 @@ vector<City> load_cities(string filename) {
     return cities;
 }
 
-void graph(void) {
-    // czytanie współrzędnych miast z pliku, zapis do wektorów
-    vector<City> cities = load_cities("ireland-5.txt");
+tuple<int, int> generate_random_indices(int max) {
+    int rand_idx1, rand_idx2;
+
+    do {
+        rand_idx1 = rand() % (max + 1);
+        rand_idx2 = rand() % (max + 1);
+    } while (rand_idx1 == rand_idx2);
+
+    return tuple(rand_idx1, rand_idx2);
+}
+
+State init_state(string filename) {
+    vector<City> cities = load_cities(filename);
 
     vector<int> indices(cities.size());
     iota(begin(indices), end(indices), 0);
 
-    State state = State{.temperature = 1,
-                        .total_length = total_distance(indices, cities),
-                        .indices = indices,
-                        .cities = cities};
+    return State{.temperature = 1,
+                 .total_length = total_distance(indices, cities),
+                 .indices = indices,
+                 .cities = cities};
+}
 
-    // losujemy kolejność miast
+// TODO: update only changed points
+void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
+                  State &state) {
+    for (int i = 0; i < state.indices.size(); i++) {
+        lines->SetPoint(i, state.cities[state.indices[i]].x,
+                        state.cities[state.indices[i]].y);
+    }
+
+    lines->SetPoint(state.indices.size(), state.cities[state.indices[0]].x,
+                    state.cities[state.indices[0]].y);
+
+    points->Draw("AP");
+    lines->Draw("same");
+    canvas->Modified();
+    canvas->Update();
+    gSystem->ProcessEvents();
+}
+
+void graph(void) {
+    // czytanie współrzędnych miast z pliku, zapis do wektorów
+    State state = init_state("ireland-5.txt");
+
     srand(time(NULL));
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
-    shuffle(indices.begin(), indices.end(), default_random_engine(seed));
+    shuffle(state.indices.begin(), state.indices.end(),
+            default_random_engine(seed));
 
     // visualize(state.indices, state.cities);
-    TCanvas *c = new TCanvas("c", "Path", 1000, 800);
-    vector<double> xs = get_x(cities);
-    vector<double> ys = get_y(cities);
-    TGraph *g1 = new TGraph(indices.size(), &xs[0], &ys[0]);
-    g1->SetTitle("Path");
-    g1->SetMarkerColor(9);
-    g1->SetMarkerStyle(29);
-    g1->SetMarkerSize(1);
+    TCanvas *canvas = new TCanvas("c", "Path", 1000, 800);
 
-    TGraph *g = new TGraph(1, &cities[0].x, &cities[0].y);
+    vector<double> xs = get_x(state.cities);
+    vector<double> ys = get_y(state.cities);
 
-    for (int i = 0; i < indices.size(); i++)
-        g->SetPoint(i, cities[indices.at(i)].x, cities[indices.at(i)].y);
+    TGraph *points = new TGraph(state.indices.size(), &xs[0], &ys[0]);
 
-    g->SetPoint(indices.size(), cities[indices.at(0)].x,
-                cities[indices.at(0)].y);
+    points->SetTitle("Path");
+    points->SetMarkerColor(9);
+    points->SetMarkerStyle(29);
+    points->SetMarkerSize(1);
 
-    g1->Draw("AP");
-    g->Draw("same");
-    c->Modified();
-    c->Update();
-    gSystem->ProcessEvents();
+    TGraph *lines = new TGraph(1, &state.cities[0].x, &state.cities[0].y);
+
+    update_graph(canvas, points, lines, state);
 
     while (1) {
-        shuffle(indices.begin(), indices.end(), default_random_engine(seed));
+        auto [idx1, idx2] = generate_random_indices(state.cities.size() - 1);
 
-        for (int i = 0; i < indices.size(); i++)
-            g->SetPoint(i, cities[indices.at(i)].x, cities[indices.at(i)].y);
+        for (int i = 0; i < state.indices.size(); i++) {
+            cout << state.indices[i] << " ";
+        }
+        cout << endl;
 
-        g->SetPoint(indices.size(), cities[indices.at(0)].x,
-                    cities[indices.at(0)].y);
+        swap(state.indices[idx1], state.indices[idx2]);
 
-        g1->Draw("AP");
-        g->Draw("same");
-        c->Modified();
-        c->Update();
-        gSystem->ProcessEvents();
+        update_graph(canvas, points, lines, state);
         sleep(1);
     }
 }
