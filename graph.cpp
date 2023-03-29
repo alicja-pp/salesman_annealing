@@ -91,7 +91,7 @@ State init_state(string filename) {
     iota(begin(indices), end(indices), 0);
 
     return State{.step = 0,
-                 .temperature = 1,
+                 .temperature = 100,
                  .total_length = total_distance(cities, indices),
                  .indices = indices,
                  .cities = cities};
@@ -99,7 +99,7 @@ State init_state(string filename) {
 
 // TODO: update only changed points
 void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
-                  TGraph *lengths, State &state) {
+                  TGraph *lengths, TGraph *temps, State &state) {
     for (int i = 0; i < state.indices.size(); i++) {
         lines->SetPoint(i, state.cities[state.indices[i]].x,
                         state.cities[state.indices[i]].y);
@@ -110,12 +110,17 @@ void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
 
     lengths->SetPoint(state.step, state.step, state.total_length);
 
+    temps->SetPoint(state.step, state.step, state.temperature);
+
     canvas->cd(1);
     points->Draw("AP");
     lines->Draw("same");
 
     canvas->cd(2);
     lengths->Draw();
+
+    canvas->cd(3);
+    temps->Draw();
 
     canvas->Modified();
     canvas->Update();
@@ -133,8 +138,8 @@ void graph(void) {
             default_random_engine(seed));
 
     // visualize(state.indices, state.cities);
-    TCanvas *canvas = new TCanvas("c", "Path", 1000, 800);
-    canvas->Divide(2, 1);
+    TCanvas *canvas = new TCanvas("c", "Path", 1200, 800);
+    canvas->Divide(3, 1);
 
     vector<double> xs = get_x(state.cities);
     vector<double> ys = get_y(state.cities);
@@ -148,22 +153,22 @@ void graph(void) {
 
     TGraph *lines = new TGraph(1, &state.cities[0].x, &state.cities[0].y);
 
-    TGraph *lengths = new TGraph(1, 0, state.total_length);
+    TGraph *lengths = new TGraph(1, 0, &state.total_length);
     lengths->SetTitle("Length");
 
-    update_graph(canvas, points, lines, lengths, state);
+    TGraph *temps = new TGraph(1, 0, &state.temperature);
+    temps->SetTitle("Temperature");
+
+    update_graph(canvas, points, lines, lengths, temps, state);
 
     int rand_idx1, rand_idx2;
 
+    //TODO: warunek zatrzymania programu - moe gdy wyzeruje się temperatura / będzie praktycznie zerowa
     while (state.step < step_number) {
         do {
             rand_idx1 = rand() % (state.cities.size());
             rand_idx2 = rand() % (state.cities.size());
         } while (rand_idx1 == rand_idx2);
-
-        // auto [idx1, idx2] = generate_random_indices(state.cities.size() - 1);
-        cout << "random_idx1: " << rand_idx1 << ", "
-             << "random_idx2: " << rand_idx2 << endl;
 
         vector<int> new_indices(state.indices);
 
@@ -172,23 +177,18 @@ void graph(void) {
         double new_length = total_distance(state.cities, new_indices);
 
         double prob =
-            exp(-(new_length - state.total_length) / state.temperature);
-        double random = (double)rand() / (RAND_MAX + 1.0);
+            exp(-(new_length - state.total_length) / (state.temperature));
 
-        cout << "random: " << random << endl;
-        cout << "probability: " << prob << endl;
+        double random = (double)rand() / (RAND_MAX + 1.0);
 
         if (random < prob) {
             state.total_length = new_length;
             state.indices = new_indices;
         }
 
-        cout << "length: " << state.total_length << endl;
-        cout << "temperature: " << state.temperature << endl;
+        state.temperature *= 0.9;
 
-        state.temperature *= 0.98;
-
-        update_graph(canvas, points, lines, lengths, state);
+        update_graph(canvas, points, lines, lengths, temps, state);
         // sleep(1);
         cout << endl;
         state.step++;
