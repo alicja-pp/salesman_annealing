@@ -24,7 +24,7 @@ struct State {
     const vector<City> cities;
 };
 
-double total_distance(vector<City> cities, vector<int> idx) {
+double total_distance(const vector<City> &cities, const vector<int> &idx) {
     long double d = 0;
 
     for (int i = 0; i < idx.size() - 1; i++) {
@@ -36,21 +36,21 @@ double total_distance(vector<City> cities, vector<int> idx) {
     return d;
 }
 
-vector<double> get_x(vector<City> cities) {
+vector<double> get_x(const vector<City> &cities) {
     vector<double> xs(cities.size());
     transform(cities.begin(), cities.end(), xs.begin(),
               [](City const &city) { return city.x; });
     return xs;
 }
 
-vector<double> get_y(vector<City> cities) {
+vector<double> get_y(const vector<City> &cities) {
     vector<double> ys(cities.size());
     transform(cities.begin(), cities.end(), ys.begin(),
               [](City const &city) { return city.y; });
     return ys;
 }
 
-vector<City> load_cities(string filename) {
+vector<City> load_cities(const string &filename) {
     ifstream Cities;
     Cities.open(filename);
 
@@ -80,9 +80,7 @@ tuple<int, int> generate_random_indices(int max) {
     return tuple(rand_idx1, rand_idx2);
 }
 
-State init_state(string filename) {
-    vector<City> cities = load_cities(filename);
-
+State init_state(const vector<City> &cities) {
     vector<int> indices(cities.size());
     iota(begin(indices), end(indices), 0);
 
@@ -95,7 +93,7 @@ State init_state(string filename) {
 
 // TODO: update only changed points
 void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
-                  TGraph *lengths, TGraph *temps, State &state) {
+                  TGraph *lengths, TGraph *temps, const State &state) {
     for (int i = 0; i < state.indices.size(); i++) {
         lines->SetPoint(i, state.cities[state.indices[i]].x,
                         state.cities[state.indices[i]].y);
@@ -125,7 +123,7 @@ void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
 
 void graph(void) {
     // czytanie współrzędnych miast z pliku, zapis do wektorów
-    State state = init_state("ireland-100.txt");
+    State state = init_state(load_cities("ireland-100.txt"));
     int step_number = 1000000;
 
     srand(time(NULL));
