@@ -36,6 +36,17 @@ double total_distance(const vector<City> &cities, const vector<int> &idx) {
     return d;
 }
 
+State init_state(const vector<City> &cities) {
+    vector<int> indices(cities.size());
+    iota(begin(indices), end(indices), 0);
+
+    return State{.step = 0,
+                 .temperature = 10000,
+                 .total_length = total_distance(cities, indices),
+                 .indices = indices,
+                 .cities = cities};
+}
+
 vector<double> get_x(const vector<City> &cities) {
     vector<double> xs(cities.size());
     transform(cities.begin(), cities.end(), xs.begin(),
@@ -69,43 +80,8 @@ vector<City> load_cities(const string &filename) {
     return cities;
 }
 
-tuple<int, int> generate_random_indices(int max) {
-    int rand_idx1, rand_idx2;
-
-    do {
-        rand_idx1 = rand() % (max + 1);
-        rand_idx2 = rand() % (max + 1);
-    } while (rand_idx1 == rand_idx2);
-
-    return tuple(rand_idx1, rand_idx2);
-}
-
-State init_state(const vector<City> &cities) {
-    vector<int> indices(cities.size());
-    iota(begin(indices), end(indices), 0);
-
-    return State{.step = 0,
-                 .temperature = 100000,
-                 .total_length = total_distance(cities, indices),
-                 .indices = indices,
-                 .cities = cities};
-}
-
-// TODO: update only changed points
-void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
-                  TGraph *lengths, TGraph *temps, const State &state) {
-    for (int i = 0; i < state.indices.size(); i++) {
-        lines->SetPoint(i, state.cities[state.indices[i]].x,
-                        state.cities[state.indices[i]].y);
-    }
-
-    lines->SetPoint(state.indices.size(), state.cities[state.indices[0]].x,
-                    state.cities[state.indices[0]].y);
-
-    lengths->SetPoint(state.step, state.step, state.total_length);
-
-    temps->SetPoint(state.step, state.step, state.temperature);
-
+void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
+                TGraph *lengths, TGraph *temps, const State &state) {
     canvas->cd(1);
     points->Draw("AP");
     lines->Draw("same");
@@ -114,17 +90,13 @@ void update_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
     lengths->Draw();
 
     canvas->cd(3);
+    gPad->SetLogy();
     temps->Draw();
-
-    canvas->Modified();
-    canvas->Update();
-    gSystem->ProcessEvents();
 }
 
 void graph(void) {
     // czytanie współrzędnych miast z pliku, zapis do wektorów
-    State state = init_state(load_cities("ireland-100.txt"));
-    int step_number = 1000000;
+    State state = init_state(load_cities("ireland-30.txt"));
 
     srand(time(NULL));
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
@@ -135,8 +107,8 @@ void graph(void) {
     TCanvas *canvas = new TCanvas("c", "Path", 1200, 800);
     canvas->Divide(3, 1);
 
-    vector<double> xs = get_x(state.cities);
-    vector<double> ys = get_y(state.cities);
+    const vector<double> xs = get_x(state.cities);
+    const vector<double> ys = get_y(state.cities);
 
     TGraph *points = new TGraph(state.indices.size(), &xs[0], &ys[0]);
 
@@ -153,12 +125,15 @@ void graph(void) {
     TGraph *temps = new TGraph(1, 0, &state.temperature);
     temps->SetTitle("Temperature");
 
-    update_graph(canvas, points, lines, lengths, temps, state);
-
     int rand_idx1, rand_idx2;
 
-    // TODO: warunek zatrzymania programu - moze gdy temp ~= 0
-    while (state.step < step_number) {
+    const long STEPS = 100000;
+
+    cout << "Initial length: " << state.total_length << '\n';
+    cout << "Initial temperature: " << state.temperature << '\n';
+    cout << '\n';
+
+    while (state.step < STEPS) {
         do {
             rand_idx1 = rand() % (state.cities.size());
             rand_idx2 = rand() % (state.cities.size());
@@ -180,18 +155,32 @@ void graph(void) {
             state.indices = new_indices;
         }
 
-        cout << endl << state.step << ": " << endl;
-        cout << "Length = " << state.total_length << endl;
-        cout << "New Length = " << new_length << endl;
-        cout << "Temperature = " << state.temperature << endl;
-        cout << "Probability = " << prob << endl;
 
-        state.temperature *= 0.8;
+        if (state.step % 100 == 0) {
+            state.temperature *= 0.99;
+        }
 
-        update_graph(canvas, points, lines, lengths, temps, state);
+        for (int i = 0; i < state.indices.size(); i++) {
+            lines->SetPoint(i, state.cities[state.indices[i]].x,
+                            state.cities[state.indices[i]].y);
+        }
+
+        lines->SetPoint(state.indices.size(), state.cities[state.indices[0]].x,
+                        state.cities[state.indices[0]].y);
+        lengths->SetPoint(state.step, state.step, state.total_length);
+        temps->SetPoint(state.step, state.step, state.temperature);
 
         state.step++;
+
+        if (state.step % (STEPS / 10) == 0)
+            cout << "step: " << state.step << '\n';
     }
+
+    draw_graph(canvas, points, lines, lengths, temps, state);
+
+    cout << '\n';
+    cout << "Final length = " << state.total_length << '\n';
+    cout << "Final temperature = " << state.temperature << '\n';
 }
 
 #ifndef __CINT__
