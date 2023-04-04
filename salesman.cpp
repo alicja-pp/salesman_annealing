@@ -94,7 +94,7 @@ void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
     temps->Draw();
 }
 
-void graph(void) {
+void salesman(void) {
     // czytanie współrzędnych miast z pliku, zapis do wektorów
     State state = init_state(load_cities("ireland-30.txt"));
 
@@ -185,7 +185,7 @@ void graph(void) {
 
 #ifndef __CINT__
 int main() {
-    graph();
+    salesman();
     return 0;
 }
 #endif
