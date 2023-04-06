@@ -16,14 +16,6 @@ struct City {
     double y;
 };
 
-struct State {
-    long step;
-    double temperature;
-    double total_length;
-    vector<int> indices;
-    const vector<City> cities;
-};
-
 double total_distance(const vector<City> &cities, const vector<int> &idx) {
     long double d = 0;
 
@@ -36,32 +28,7 @@ double total_distance(const vector<City> &cities, const vector<int> &idx) {
     return d;
 }
 
-State init_state(const vector<City> &cities) {
-    vector<int> indices(cities.size());
-    iota(begin(indices), end(indices), 0);
-
-    return State{.step = 0,
-                 .temperature = 10000,
-                 .total_length = total_distance(cities, indices),
-                 .indices = indices,
-                 .cities = cities};
-}
-
-vector<double> get_x(const vector<City> &cities) {
-    vector<double> xs(cities.size());
-    transform(cities.begin(), cities.end(), xs.begin(),
-              [](City const &city) { return city.x; });
-    return xs;
-}
-
-vector<double> get_y(const vector<City> &cities) {
-    vector<double> ys(cities.size());
-    transform(cities.begin(), cities.end(), ys.begin(),
-              [](City const &city) { return city.y; });
-    return ys;
-}
-
-vector<City> load_cities(const string &filename) {
+const vector<City> load_cities(const string &filename) {
     ifstream Cities;
     Cities.open(filename);
 
@@ -80,6 +47,38 @@ vector<City> load_cities(const string &filename) {
     return cities;
 }
 
+struct State {
+    long step;
+    double temperature;
+    double total_length;
+    vector<int> indices;
+    const vector<City> cities;
+
+    State(string filename) : cities(load_cities(filename)) {
+        vector<int> indices(cities.size());
+        iota(begin(indices), end(indices), 0);
+
+        this->step = 0;
+        this->temperature = 10000;
+        this->total_length = total_distance(cities, indices);
+        this->indices = indices;
+    }
+};
+
+vector<double> get_x(const vector<City> &cities) {
+    vector<double> xs(cities.size());
+    transform(cities.begin(), cities.end(), xs.begin(),
+              [](City const &city) { return city.x; });
+    return xs;
+}
+
+vector<double> get_y(const vector<City> &cities) {
+    vector<double> ys(cities.size());
+    transform(cities.begin(), cities.end(), ys.begin(),
+              [](City const &city) { return city.y; });
+    return ys;
+}
+
 void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
                 TGraph *lengths, TGraph *temps, const State &state) {
     canvas->cd(1);
@@ -94,17 +93,19 @@ void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
     temps->Draw();
 }
 
+const long STEPS = 100000;
+
 void salesman(void) {
-    // czytanie współrzędnych miast z pliku, zapis do wektorów
-    State state = init_state(load_cities("ireland-30.txt"));
+    // czytanie współrzędnych miast z pliku
+    auto state = State("ireland-30.txt");
 
     srand(time(NULL));
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
+
     shuffle(state.indices.begin(), state.indices.end(),
             default_random_engine(seed));
 
-    // visualize(state.indices, state.cities);
-    TCanvas *canvas = new TCanvas("c", "Path", 1200, 800);
+    TCanvas *canvas = new TCanvas("canvas", "Path", 1200, 800);
     canvas->Divide(3, 1);
 
     const vector<double> xs = get_x(state.cities);
@@ -125,13 +126,13 @@ void salesman(void) {
     TGraph *temps = new TGraph(1, 0, &state.temperature);
     temps->SetTitle("Temperature");
 
-    int rand_idx1, rand_idx2;
-
-    const long STEPS = 100000;
-
     cout << "Initial length: " << state.total_length << '\n';
     cout << "Initial temperature: " << state.temperature << '\n';
     cout << '\n';
+
+    draw_graph(canvas, points, lines, lengths, temps, state);
+
+    int rand_idx1, rand_idx2;
 
     while (state.step < STEPS) {
         do {
@@ -154,7 +155,6 @@ void salesman(void) {
             state.total_length = new_length;
             state.indices = new_indices;
         }
-
 
         if (state.step % 100 == 0) {
             state.temperature *= 0.99;
