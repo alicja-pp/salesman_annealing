@@ -91,6 +91,8 @@ void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
     canvas->cd(3);
     gPad->SetLogy();
     temps->Draw();
+
+    canvas->Print("result.svg");
 }
 
 const long STEPS = 100000;
