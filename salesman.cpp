@@ -89,7 +89,7 @@ void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
     lengths->Draw();
 
     canvas->cd(3);
-    gPad->SetLogy();
+    gPad->SetLogy();  // exponential and logarytmic
     temps->Draw();
 
     canvas->Print("result.svg");
@@ -98,7 +98,6 @@ void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
 const long STEPS = 100000;
 
 void salesman(void) {
-    // czytanie współrzędnych miast z pliku
     auto state = State("ireland-30.txt");
 
     srand(time(NULL));
@@ -115,7 +114,7 @@ void salesman(void) {
 
     TGraph *points = new TGraph(state.indices.size(), &xs[0], &ys[0]);
 
-    points->SetTitle("Path");
+    points->SetTitle("Path; x; y");
     points->SetMarkerColor(9);
     points->SetMarkerStyle(29);
     points->SetMarkerSize(1);
@@ -123,20 +122,20 @@ void salesman(void) {
     TGraph *lines = new TGraph(1, &state.cities[0].x, &state.cities[0].y);
 
     TGraph *lengths = new TGraph(1, 0, &state.total_length);
-    lengths->SetTitle("Length");
+    lengths->SetTitle("Length; step; length");
 
     TGraph *temps = new TGraph(1, 0, &state.temperature);
-    temps->SetTitle("Temperature");
+    temps->SetTitle("Temperature; step; temperature");
 
     cout << "Initial length: " << state.total_length << '\n';
     cout << "Initial temperature: " << state.temperature << '\n';
     cout << '\n';
-
-    draw_graph(canvas, points, lines, lengths, temps, state);
-
     int rand_idx1, rand_idx2;
 
-    while (state.step < STEPS) {
+    double start_temperature = state.temperature;  // for logarytmic
+
+    while (state.step < STEPS) {  // exponential and logarytmic
+        //  while (state.temperature > 0) {  // linear
         do {
             rand_idx1 = rand() % (state.cities.size());
             rand_idx2 = rand() % (state.cities.size());
@@ -158,8 +157,13 @@ void salesman(void) {
             state.indices = new_indices;
         }
 
+        // 3 ways of decreasing temperature
         if (state.step % 100 == 0) {
-            state.temperature *= 0.99;
+            state.temperature *= 0.99;  // exponential
+            //   state.temperature -= 1;     // linear
+            //  state.temperature =
+            //     start_temperature / (1 + log(1 + state.step));  //
+            //     logarytmic
         }
 
         for (int i = 0; i < state.indices.size(); i++) {
