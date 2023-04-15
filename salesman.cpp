@@ -89,13 +89,13 @@ void draw_graph(TCanvas *canvas, TGraph *points, TGraph *lines,
     lengths->Draw();
 
     canvas->cd(3);
-    gPad->SetLogy();  // exponential and logarytmic
+    // gPad->SetLogy();  // exponential and logarithmic
     temps->Draw();
 
-    canvas->Print("result.svg");
+    canvas->Print("result.png");
 }
 
-const long STEPS = 100000;
+const long STEPS = 1e8;
 
 void salesman(void) {
     auto state = State("ireland-30.txt");
@@ -132,10 +132,10 @@ void salesman(void) {
     cout << '\n';
     int rand_idx1, rand_idx2;
 
-    double start_temperature = state.temperature;  // for logarytmic
+    double start_temperature = state.temperature;  // for logarithmic
 
-    while (state.step < STEPS) {  // exponential and logarytmic
-        //  while (state.temperature > 0) {  // linear
+    // while (state.temperature > 0) {  // linear
+    while (state.step < STEPS) {  // exponential and logarithmic
         do {
             rand_idx1 = rand() % (state.cities.size());
             rand_idx2 = rand() % (state.cities.size());
@@ -158,12 +158,11 @@ void salesman(void) {
         }
 
         // 3 ways of decreasing temperature
-        if (state.step % 100 == 0) {
-            state.temperature *= 0.99;  // exponential
-            //   state.temperature -= 1;     // linear
-            //  state.temperature =
-            //     start_temperature / (1 + log(1 + state.step));  //
-            //     logarytmic
+        if (state.step % 10 == 0) {
+            // state.temperature *= 0.99;  // exponential
+            // state.temperature -= 1;  // linear
+            state.temperature =
+                start_temperature / (1 + log(state.step));  // logarithmic
         }
 
         for (int i = 0; i < state.indices.size(); i++) {
